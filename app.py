@@ -8,6 +8,12 @@ import os
 st.set_page_config(page_title="Our First Year Anniversary 💖", layout="centered")
 
 # -----------------------------
+# SESSION STATE INIT (VERY IMPORTANT)
+# -----------------------------
+if "clear_inputs" not in st.session_state:
+    st.session_state.clear_inputs = False
+
+# -----------------------------
 # LOGIN
 # -----------------------------
 st.sidebar.title("Login 💖")
@@ -60,11 +66,14 @@ answers = {}
 for q in questions:
     key = f"{user_name}_{q}"
 
-    # initialize state if not exists
-    if key not in st.session_state:
+    # ✅ CLEAR BEFORE WIDGET CREATION (SAFE)
+    if st.session_state.clear_inputs:
         st.session_state[key] = ""
 
     answers[q] = st.text_input(q, key=key)
+
+# ✅ RESET FLAG AFTER RENDER
+st.session_state.clear_inputs = False
 
 # -----------------------------
 # SAVE ANSWERS
@@ -72,10 +81,9 @@ for q in questions:
 if st.button("💾 Save My Answers"):
     df = pd.read_csv(DATA_FILE)
 
-    # Remove old answers for this user
+    # Remove old answers
     df = df[df["user"] != user_name]
 
-    # Add new answers
     new_rows = []
     for q, a in answers.items():
         new_rows.append({
@@ -89,9 +97,11 @@ if st.button("💾 Save My Answers"):
 
     st.success("Answers saved! 💖")
 
-    # ✅ CLEAR INPUTS AFTER SAVE
-    for q in questions:
-        st.session_state[f"{user_name}_{q}"] = ""
+    # ✅ TRIGGER RESET (DO NOT MODIFY KEYS DIRECTLY)
+    st.session_state.clear_inputs = True
+
+    # ✅ FORCE RERUN
+    st.rerun()
 
 # -----------------------------
 # RESET BUTTON
@@ -102,10 +112,11 @@ if st.button("🔄 Reset My Answers"):
     df = df[df["user"] != user_name]
     df.to_csv(DATA_FILE, index=False)
 
-    for q in questions:
-        st.session_state[f"{user_name}_{q}"] = ""
+    st.session_state.clear_inputs = True
 
     st.success("Your answers have been cleared! 🧹")
+
+    st.rerun()
 
 # -----------------------------
 # SHOW SAVED ANSWERS
@@ -160,9 +171,6 @@ if st.button("💖 See Our Match"):
         df_results = pd.DataFrame(results)
         st.dataframe(df_results)
 
-        # -----------------------------
-        # FEEDBACK
-        # -----------------------------
         if score == len(questions):
             st.success("🔥 Perfect Match! Soulmates!")
         elif score > len(questions) // 2:
