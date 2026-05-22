@@ -8,7 +8,7 @@ import os
 st.set_page_config(page_title="Our First Year Anniversary 💖", layout="centered")
 
 # -----------------------------
-# LOGIN / USER NAME
+# LOGIN
 # -----------------------------
 st.sidebar.title("Login 💖")
 
@@ -19,17 +19,15 @@ if not user_name:
     st.stop()
 
 # -----------------------------
-# TITLE + INTRO
+# TITLE
 # -----------------------------
 st.title("💖 Our First Year Together")
 
 st.markdown(f"""
 Welcome **{user_name}** 💕
 
-Answer honestly and let’s see how well we both know each other 😄
+Answer honestly and let’s see how well you both know each other 😄
 """)
-
-st.image("https://via.placeholder.com/600x300.png?text=Our+Memories")
 
 # -----------------------------
 # QUESTIONS
@@ -44,7 +42,7 @@ questions = [
 ]
 
 # -----------------------------
-# DATA STORAGE (CSV)
+# DATA STORAGE
 # -----------------------------
 DATA_FILE = "answers.csv"
 
@@ -60,13 +58,18 @@ st.header(f"💬 {user_name}, answer these questions")
 answers = {}
 
 for q in questions:
-    answer = st.text_input(q, key=f"{user_name}_{q}")
-    answers[q] = answer
+    key = f"{user_name}_{q}"
+
+    # initialize state if not exists
+    if key not in st.session_state:
+        st.session_state[key] = ""
+
+    answers[q] = st.text_input(q, key=key)
 
 # -----------------------------
 # SAVE ANSWERS
 # -----------------------------
-if st.button("Save My Answers 💾"):
+if st.button("💾 Save My Answers"):
     df = pd.read_csv(DATA_FILE)
 
     # Remove old answers for this user
@@ -74,7 +77,6 @@ if st.button("Save My Answers 💾"):
 
     # Add new answers
     new_rows = []
-
     for q, a in answers.items():
         new_rows.append({
             "user": user_name,
@@ -83,13 +85,43 @@ if st.button("Save My Answers 💾"):
         })
 
     df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
-
     df.to_csv(DATA_FILE, index=False)
 
     st.success("Answers saved! 💖")
 
+    # ✅ CLEAR INPUTS AFTER SAVE
+    for q in questions:
+        st.session_state[f"{user_name}_{q}"] = ""
+
 # -----------------------------
-# COMPARE ANSWERS
+# RESET BUTTON
+# -----------------------------
+if st.button("🔄 Reset My Answers"):
+    df = pd.read_csv(DATA_FILE)
+
+    df = df[df["user"] != user_name]
+    df.to_csv(DATA_FILE, index=False)
+
+    for q in questions:
+        st.session_state[f"{user_name}_{q}"] = ""
+
+    st.success("Your answers have been cleared! 🧹")
+
+# -----------------------------
+# SHOW SAVED ANSWERS
+# -----------------------------
+st.subheader("📋 Your Saved Answers")
+
+df_current = pd.read_csv(DATA_FILE)
+df_user = df_current[df_current["user"] == user_name]
+
+if not df_user.empty:
+    st.dataframe(df_user)
+else:
+    st.info("No saved answers yet.")
+
+# -----------------------------
+# COMPARE
 # -----------------------------
 if st.button("💖 See Our Match"):
     df = pd.read_csv(DATA_FILE)
@@ -129,7 +161,7 @@ if st.button("💖 See Our Match"):
         st.dataframe(df_results)
 
         # -----------------------------
-        # FUN FEEDBACK
+        # FEEDBACK
         # -----------------------------
         if score == len(questions):
             st.success("🔥 Perfect Match! Soulmates!")
