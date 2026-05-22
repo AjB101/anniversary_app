@@ -1,12 +1,39 @@
 import streamlit as st
 import pandas as pd
+import os
 
-st.set_page_config(page_title="Our First Year Annivesary 💖", layout="centered")
+# -----------------------------
+# PAGE CONFIG
+# -----------------------------
+st.set_page_config(page_title="Our First Year Anniversary 💖", layout="centered")
 
+# -----------------------------
+# LOGIN / USER NAME
+# -----------------------------
+st.sidebar.title("Login 💖")
+
+user_name = st.sidebar.text_input("Enter your name")
+
+if not user_name:
+    st.warning("Please enter your name to continue")
+    st.stop()
+
+# -----------------------------
+# TITLE + INTRO
+# -----------------------------
 st.title("💖 Our First Year Together")
-st.write("Answer these questions about each other and see how well we know each other 😄")
 
-# Questions
+st.markdown(f"""
+Welcome **{user_name}** 💕
+
+Answer honestly and let’s see how well we both know each other 😄
+""")
+
+st.image("https://via.placeholder.com/600x300.png?text=Our+Memories")
+
+# -----------------------------
+# QUESTIONS
+# -----------------------------
 questions = [
     "Where did we first meet?",
     "What’s my favorite food?",
@@ -16,57 +43,99 @@ questions = [
     "What’s my biggest goal right now?"
 ]
 
-# Initialize session state
-if "answers_you" not in st.session_state:
-    st.session_state.answers_you = {}
-if "answers_bae" not in st.session_state:
-    st.session_state.answers_bae = {}
+# -----------------------------
+# DATA STORAGE (CSV)
+# -----------------------------
+DATA_FILE = "answers.csv"
 
-st.header("👤 Your Answers About Your Partner")
+if not os.path.exists(DATA_FILE):
+    df_init = pd.DataFrame(columns=["user", "question", "answer"])
+    df_init.to_csv(DATA_FILE, index=False)
+
+# -----------------------------
+# INPUT SECTION
+# -----------------------------
+st.header(f"💬 {user_name}, answer these questions")
+
+answers = {}
 
 for q in questions:
-    st.session_state.answers_you[q] = st.text_input(f"You: {q}", key=f"you_{q}")
+    answer = st.text_input(q, key=f"{user_name}_{q}")
+    answers[q] = answer
 
-st.header("💑 Your Partner's Answers About You")
+# -----------------------------
+# SAVE ANSWERS
+# -----------------------------
+if st.button("Save My Answers 💾"):
+    df = pd.read_csv(DATA_FILE)
 
-for q in questions:
-    st.session_state.answers_bae[q] = st.text_input(f"Partner: {q}", key=f"bae_{q}")
+    # Remove old answers for this user
+    df = df[df["user"] != user_name]
 
-# Compare answers
-if st.button("💖 See Our Match Score"):
-    score = 0
+    # Add new answers
+    new_rows = []
 
-    results = []
-
-    for q in questions:
-        a1 = st.session_state.answers_you[q].strip().lower()
-        a2 = st.session_state.answers_bae[q].strip().lower()
-
-        match = a1 == a2 and a1 != ""
-
-        if match:
-            score += 1
-
-        results.append({
-            "Question": q,
-            "You": a1,
-            "Partner": a2,
-            "Match": "✅" if match else "❌"
+    for q, a in answers.items():
+        new_rows.append({
+            "user": user_name,
+            "question": q,
+            "answer": a
         })
 
-    st.subheader(f"💯 Match Score: {score} / {len(questions)}")
+    df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
 
-    df = pd.DataFrame(results)
-    st.dataframe(df)
+    df.to_csv(DATA_FILE, index=False)
 
-    # Fun message
-    if score == len(questions):
-        st.success("🔥 Perfect Match! Y’all locked in!")
-    elif score > len(questions) // 2:
-        st.info("💛 Pretty solid! You know each other well.")
+    st.success("Answers saved! 💖")
+
+# -----------------------------
+# COMPARE ANSWERS
+# -----------------------------
+if st.button("💖 See Our Match"):
+    df = pd.read_csv(DATA_FILE)
+
+    users = df["user"].unique()
+
+    if len(users) < 2:
+        st.warning("Waiting for both of you to answer...")
     else:
-        st.warning("😂 Time to learn more about each other!")
+        user1, user2 = users[:2]
 
-    # Download results
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 Download Results", csv, "anniversary_results.csv", "text/csv")
+        results = []
+        score = 0
+
+        for q in questions:
+            a1 = df[(df["user"] == user1) & (df["question"] == q)]["answer"].values
+            a2 = df[(df["user"] == user2) & (df["question"] == q)]["answer"].values
+
+            a1 = a1[0].strip().lower() if len(a1) else ""
+            a2 = a2[0].strip().lower() if len(a2) else ""
+
+            match = a1 == a2 and a1 != ""
+
+            if match:
+                score += 1
+
+            results.append({
+                "Question": q,
+                user1: a1,
+                user2: a2,
+                "Match": "✅" if match else "❌"
+            })
+
+        st.subheader(f"💯 Match Score: {score} / {len(questions)}")
+
+        df_results = pd.DataFrame(results)
+        st.dataframe(df_results)
+
+        # -----------------------------
+        # FUN FEEDBACK
+        # -----------------------------
+        if score == len(questions):
+            st.success("🔥 Perfect Match! Soulmates!")
+        elif score > len(questions) // 2:
+            st.info("💛 Strong connection!")
+        else:
+            st.warning("😂 Keep learning each other!")
+
+        st.balloons()
